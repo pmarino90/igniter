@@ -1,5 +1,6 @@
 extern crate config;
 extern crate serde;
+extern crate serde_json;
 extern crate ctrlc;
 extern crate nix;
 #[macro_use]
@@ -11,7 +12,7 @@ use clap::{Arg, App, SubCommand};
 use std::process::{Command, Stdio};
 use config::{FileFormat};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct Process {
     name: String,
     cmd: String,
@@ -26,13 +27,13 @@ fn start_processes(processes: Vec<Process>) {
     println!("Starting processes found in .igniterc");
 
     for p in processes {
+        let data = serde_json::to_string(&p).unwrap();
+
         println!("Name: {}", p.name);
         println!("Command: {}", p.cmd);
-        println!("");
 
-        let child = Command::new("igniter")
-        .args(&[String::from("monitor"), p.cmd])
-        .stdout(Stdio::null())
+        let child = Command::new(std::env::current_exe().unwrap())
+        .args(&[String::from("monitor"), data])
         .spawn()
         .expect("Error while starting command");
 
@@ -40,9 +41,10 @@ fn start_processes(processes: Vec<Process>) {
     }
 }
 
-fn monitor(cmd: &str) {
-    let mut command = Command::new(cmd);
-
+fn monitor(data: &str) {
+    let process: Process = serde_json::from_str(data).unwrap();
+    let mut command = Command::new(process.cmd);
+    
     if let Ok(mut child) = command.spawn() {  
         let pid = child.id();
 
@@ -52,18 +54,18 @@ fn monitor(cmd: &str) {
             } else {
                  println!("error closing child");
             }
-
         }).expect("Error setting Ctrl-C handler");
 
         child.wait().expect("Command did not start");
         println!("Command finished");
     } else {
-        println!("Could not start command");
+        println!("Could not start command.");
     }
 }
 
 fn main() {
     let mut config = config::Config::default();
+
     config
         .merge(config::File::new(".igniterc", FileFormat::Toml))
         .expect("No .igniterc file found!");
