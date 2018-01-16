@@ -9,19 +9,30 @@ extern crate clap;
 extern crate serde_derive;
 
 use clap::{Arg, App, SubCommand};
-use std::process::{Command, Stdio};
+use std::process::{Command};
+use std::fs::File;
+use std::io::prelude::*;
+use std::env::home_dir;
 use config::{FileFormat};
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 struct Process {
     name: String,
     cmd: String,
+    #[serde(default)]
+    pid: i32,
     args: Vec<Vec<String>>
 }
 
 #[derive(Debug, Deserialize)]
 struct Settings {
     process: Vec<Process>,
+}
+
+impl Process {
+    fn set_pid(&mut self, pid: i32) {
+        self.pid = pid;
+    }
 }
 
 fn start_processes(processes: Vec<Process>) {
@@ -34,7 +45,7 @@ fn start_processes(processes: Vec<Process>) {
         println!("Command: {}", p.cmd);
 
         let child = Command::new(std::env::current_exe().unwrap())
-        .args(&[String::from("monitor"), data])
+        .args(&[String::from("monitor"), data.clone()])
         .spawn()
         .expect("Error while starting command");
 
@@ -42,27 +53,48 @@ fn start_processes(processes: Vec<Process>) {
     }
 }
 
-fn monitor(data: &str) {
-    let process: Process = serde_json::from_str(data).unwrap();
-    let mut command = Command::new(process.cmd);
+fn save_process_file(name: String, data: String) {
+    let mut file = File::create(build_process_filename(name)).unwrap();
+    file.write_all(data.as_bytes()).unwrap();
+}
 
-    for a in process.args {
+fn delete_proces_file(name: String) {
+    std::fs::remove_file(build_process_filename(name)).unwrap();
+}
+
+fn build_process_filename(name: String) -> String {
+    let base_path = format!("{}/.igniter/procs", home_dir().unwrap().display());
+
+    std::fs::create_dir_all(base_path.clone()).unwrap();
+    format!("{}/{}.json",base_path, name)
+}
+
+fn monitor(data: &str) {
+    let mut process: Process = serde_json::from_str(data).unwrap();
+    let mut command = Command::new(process.cmd.clone());
+    let args = process.args.clone();
+
+    for a in args {
         command.args(&a);
     }
     
-    if let Ok(mut child) = command.spawn() {  
-        let pid = child.id();
+    if let Ok(mut child) = command.spawn() {
+        let child_pid = child.id() as i32;  
+        process.set_pid(i32::from(nix::unistd::getpid()));
 
         ctrlc::set_handler(move || {
-            if let Ok(_) = nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid as i32), nix::sys::signal::SIGTERM) {
+            if let Ok(_) = nix::sys::signal::kill(nix::unistd::Pid::from_raw(child_pid), nix::sys::signal::SIGTERM) {
                 println!("Child closed");
             } else {
                  println!("error closing child");
             }
         }).expect("Error setting Ctrl-C handler");
 
+        save_process_file(format!("{}", process.pid), serde_json::to_string(&process).unwrap());
+
         child.wait().expect("Command did not start");
         println!("Command finished");
+        delete_proces_file(format!("{}", process.pid));
     } else {
         println!("Could not start command.");
     }
@@ -87,11 +119,19 @@ fn main() {
                     .index(1)
                     .required(true)
                 )
+        )
+        .subcommand(SubCommand::with_name("status")
+                .about("Returns a command status")
+                .arg(Arg::with_name("pid")
+                    .help("process PID")
+                    .index(1)
+                    .required(true)
+                )
         ).get_matches();
 
 
     match matches.subcommand() {
-        ("monitor", Some(clone_matches)) => monitor(clone_matches.value_of("command").unwrap()),
+        ("monitor", Some(monitor_matches))  => monitor(monitor_matches.value_of("command").unwrap()),
         ("", None)   => start_processes(settings.process), 
         _            => unreachable!(), 
     }
