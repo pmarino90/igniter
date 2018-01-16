@@ -7,6 +7,8 @@ extern crate nix;
 extern crate clap;
 #[macro_use]
 extern crate serde_derive;
+#[macro_use] 
+extern crate prettytable;
 
 use clap::{Arg, App, SubCommand};
 use std::process::{Command};
@@ -14,6 +16,9 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::env::home_dir;
 use config::{FileFormat};
+use prettytable::Table;
+use prettytable::row::Row;
+use prettytable::cell::Cell;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct Process {
@@ -69,6 +74,15 @@ fn build_process_filename(name: String) -> String {
     format!("{}/{}.json",base_path, name)
 }
 
+fn read_process_file(path: &str) -> Process {
+    let mut file = File::open(path).unwrap();
+    let mut content = String::new();
+
+    file.read_to_string(&mut content).unwrap();
+
+    serde_json::from_str(content.as_str()).unwrap()
+}
+
 fn monitor(data: &str) {
     let mut process: Process = serde_json::from_str(data).unwrap();
     let mut command = Command::new(process.cmd.clone());
@@ -100,6 +114,28 @@ fn monitor(data: &str) {
     }
 }
 
+fn list() {
+    let base_path = format!("{}/.igniter/procs", home_dir().unwrap().display());
+    let mut table = Table::new();
+
+    table.add_row(row!["PID", "NAME", "COMMAND", "ARGS", "STATUS"]);
+
+    for e in std::fs::read_dir(base_path).unwrap() {
+        let file = e.unwrap();
+        let process  = read_process_file(file.path().to_str().unwrap());
+
+        table.add_row(Row::new(vec![
+            Cell::new(format!("{}", process.pid).as_str()),
+            Cell::new(process.name.as_str()),
+            Cell::new(process.cmd.as_str()),
+            Cell::new(format!("{:?}", process.args).as_str()),
+            Cell::new("??"),
+        ]));
+    }
+
+    table.printstd();
+}
+
 fn main() {
     let mut config = config::Config::default();
 
@@ -120,18 +156,14 @@ fn main() {
                     .required(true)
                 )
         )
-        .subcommand(SubCommand::with_name("status")
-                .about("Returns a command status")
-                .arg(Arg::with_name("pid")
-                    .help("process PID")
-                    .index(1)
-                    .required(true)
-                )
+        .subcommand(SubCommand::with_name("list")
+                .about("list active process")
         ).get_matches();
 
 
     match matches.subcommand() {
         ("monitor", Some(monitor_matches))  => monitor(monitor_matches.value_of("command").unwrap()),
+        ("list", Some(_))     => list(),
         ("", None)   => start_processes(settings.process), 
         _            => unreachable!(), 
     }
