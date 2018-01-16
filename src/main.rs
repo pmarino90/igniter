@@ -36,7 +36,7 @@ fn start_processes(processes: Vec<Process>) {
         .spawn()
         .expect("Error while starting command");
 
-        println!("Process started with PID: {}", child.id());
+        println!("Manager process started with PID: {}", child.id());
     }
 }
 
