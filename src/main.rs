@@ -16,6 +16,7 @@ use config::{FileFormat};
 struct Process {
     name: String,
     cmd: String,
+    args: Vec<Vec<String>>
 }
 
 #[derive(Debug, Deserialize)]
@@ -44,6 +45,10 @@ fn start_processes(processes: Vec<Process>) {
 fn monitor(data: &str) {
     let process: Process = serde_json::from_str(data).unwrap();
     let mut command = Command::new(process.cmd);
+
+    for a in process.args {
+        command.args(&a);
+    }
     
     if let Ok(mut child) = command.spawn() {  
         let pid = child.id();
