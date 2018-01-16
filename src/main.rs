@@ -1,5 +1,7 @@
 extern crate config;
 extern crate serde;
+extern crate ctrlc;
+extern crate nix;
 #[macro_use]
 extern crate clap;
 #[macro_use]
@@ -41,7 +43,18 @@ fn start_processes(processes: Vec<Process>) {
 fn monitor(cmd: &str) {
     let mut command = Command::new(cmd);
 
-    if let Ok(mut child) = command.spawn() {        
+    if let Ok(mut child) = command.spawn() {  
+        let pid = child.id();
+
+        ctrlc::set_handler(move || {
+            if let Ok(_) = nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid as i32), nix::sys::signal::SIGTERM) {
+                println!("Child closed");
+            } else {
+                 println!("error closing child");
+            }
+
+        }).expect("Error setting Ctrl-C handler");
+
         child.wait().expect("Command did not start");
         println!("Command finished");
     } else {
