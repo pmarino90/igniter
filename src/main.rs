@@ -26,6 +26,7 @@ struct Process {
     cmd: String,
     #[serde(default)]
     pid: i32,
+    #[serde(default)]
     args: Vec<Vec<String>>
 }
 
