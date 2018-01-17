@@ -97,11 +97,14 @@ fn monitor(data: &str) {
     
     if let Ok(mut child) = command.spawn() {
         let child_pid = child.id() as i32;  
-        process.set_pid(i32::from(nix::unistd::getpid()));
+        let current_pid = i32::from(nix::unistd::getpid());
+
+        process.set_pid(current_pid.clone());
 
         ctrlc::set_handler(move || {
             if let Ok(_) = nix::sys::signal::kill(nix::unistd::Pid::from_raw(child_pid), nix::sys::signal::SIGTERM) {
                 println!("Child closed");
+                delete_proces_file(format!("{}", current_pid));
             } else {
                  println!("error closing child");
             }
@@ -150,7 +153,6 @@ fn read_settings() -> Settings {
 }
 
 fn main() {
-
     let matches = App::new(crate_name!())
         .version("0.1.0")
         .author(crate_authors!("\n"))
@@ -166,7 +168,6 @@ fn main() {
         .subcommand(SubCommand::with_name("list")
                 .about("list active process")
         ).get_matches();
-
 
     match matches.subcommand() {
         ("monitor", Some(monitor_matches))  => monitor(monitor_matches.value_of("command").unwrap()),
