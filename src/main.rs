@@ -120,16 +120,22 @@ fn monitor(data: &str) {
     }
 }
 
-fn list() {
+fn get_active_processes() -> Vec<Process> {
     let base_path = format!("{}/.igniter/procs", home_dir().unwrap().display());
+
+    std::fs::read_dir(base_path).unwrap().map(|entry| {
+        let file = entry.unwrap();
+        
+        read_process_file(file.path().to_str().unwrap())
+    }).collect()
+} 
+
+fn list() {
+    let processes = get_active_processes();
     let mut table = Table::new();
-
     table.add_row(row!["PID", "NAME", "COMMAND", "ARGS", "STATUS"]);
-
-    for e in std::fs::read_dir(base_path).unwrap() {
-        let file = e.unwrap();
-        let process  = read_process_file(file.path().to_str().unwrap());
-
+    
+    for process in processes {
         table.add_row(Row::new(vec![
             Cell::new(format!("{}", process.pid).as_str()),
             Cell::new(process.name.as_str()),
@@ -140,6 +146,10 @@ fn list() {
     }
 
     table.printstd();
+}
+
+fn stop(process: &str) {
+
 }
 
 fn read_settings() -> Settings {
@@ -167,10 +177,19 @@ fn main() {
         )
         .subcommand(SubCommand::with_name("list")
                 .about("list active process")
+        )
+        .subcommand(SubCommand::with_name("stop")
+                .about("Stops an already running process given its name")
+                .arg(Arg::with_name("process")
+                    .help("The process to stop")
+                    .index(1)
+                    .required(true)
+                )
         ).get_matches();
 
     match matches.subcommand() {
         ("monitor", Some(monitor_matches))  => monitor(monitor_matches.value_of("command").unwrap()),
+        ("stop", Some(stop_matches))        => stop(stop_matches.value_of("process").unwrap()),
         ("list", Some(_))     => list(),
         ("", None)   => start_processes(), 
         _            => unreachable!(), 
