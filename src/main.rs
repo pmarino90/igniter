@@ -41,8 +41,10 @@ impl Process {
     }
 }
 
-fn start_processes(processes: Vec<Process>) {
+fn start_processes() {
     println!("Starting processes found in .igniterc");
+    let settings = read_settings();
+    let processes = settings.process;
 
     for p in processes {
         let data = serde_json::to_string(&p).unwrap();
@@ -137,14 +139,18 @@ fn list() {
     table.printstd();
 }
 
-fn main() {
+fn read_settings() -> Settings {
     let mut config = config::Config::default();
 
     config
         .merge(config::File::new(".igniterc", FileFormat::Toml))
         .expect("No .igniterc file found!");
 
-    let settings: Settings = config.try_into::<Settings>().unwrap();
+    config.try_into::<Settings>().unwrap()
+}
+
+fn main() {
+
     let matches = App::new(crate_name!())
         .version("0.1.0")
         .author(crate_authors!("\n"))
@@ -165,7 +171,7 @@ fn main() {
     match matches.subcommand() {
         ("monitor", Some(monitor_matches))  => monitor(monitor_matches.value_of("command").unwrap()),
         ("list", Some(_))     => list(),
-        ("", None)   => start_processes(settings.process), 
+        ("", None)   => start_processes(), 
         _            => unreachable!(), 
     }
 }
