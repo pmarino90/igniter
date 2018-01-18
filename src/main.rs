@@ -87,6 +87,20 @@ fn read_process_file(path: &str) -> Process {
     serde_json::from_str(content.as_str()).unwrap()
 }
 
+fn get_active_processes() -> Vec<Process> {
+    let base_path = format!("{}/.igniter/procs", home_dir().unwrap().display());
+
+    std::fs::read_dir(base_path).unwrap().map(|entry| {
+        let file = entry.unwrap();
+        
+        read_process_file(file.path().to_str().unwrap())
+    }).collect()
+}
+
+fn kill_process(pid: i32) -> Result<()> {
+    nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid), nix::sys::signal::SIGTERM)
+}
+
 fn monitor(data: &str) {
     let mut process: Process = serde_json::from_str(data).unwrap();
     let mut command = Command::new(process.cmd.clone());
@@ -121,16 +135,6 @@ fn monitor(data: &str) {
     }
 }
 
-fn get_active_processes() -> Vec<Process> {
-    let base_path = format!("{}/.igniter/procs", home_dir().unwrap().display());
-
-    std::fs::read_dir(base_path).unwrap().map(|entry| {
-        let file = entry.unwrap();
-        
-        read_process_file(file.path().to_str().unwrap())
-    }).collect()
-} 
-
 fn list() {
     let processes = get_active_processes();
     let mut table = Table::new();
@@ -147,10 +151,6 @@ fn list() {
     }
 
     table.printstd();
-}
-
-fn kill_process(pid: i32) -> Result<()> {
-    nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid), nix::sys::signal::SIGTERM)
 }
 
 fn stop(process: &str) {
