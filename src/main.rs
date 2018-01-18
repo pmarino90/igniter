@@ -11,6 +11,7 @@ extern crate serde_derive;
 extern crate prettytable;
 
 use clap::{Arg, App, SubCommand};
+use nix::Result;
 use std::process::{Command};
 use std::fs::File;
 use std::io::prelude::*;
@@ -102,7 +103,7 @@ fn monitor(data: &str) {
         process.set_pid(current_pid.clone());
 
         ctrlc::set_handler(move || {
-            if let Ok(_) = nix::sys::signal::kill(nix::unistd::Pid::from_raw(child_pid), nix::sys::signal::SIGTERM) {
+            if let Ok(_) = kill_process(child_pid) {
                 println!("Child closed");
                 delete_proces_file(format!("{}", current_pid));
             } else {
@@ -148,8 +149,16 @@ fn list() {
     table.printstd();
 }
 
-fn stop(process: &str) {
+fn kill_process(pid: i32) -> Result<()> {
+    nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid), nix::sys::signal::SIGTERM)
+}
 
+fn stop(process: &str) {
+    if let Some(searched_process) = get_active_processes().iter().find(|p| { p.name == String::from(process)}) {
+        kill_process(searched_process.pid).unwrap();
+    } else {
+        println!("No process to stop");
+    }
 }
 
 fn read_settings() -> Settings {
