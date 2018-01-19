@@ -11,8 +11,7 @@ extern crate serde_derive;
 extern crate prettytable;
 
 use clap::{Arg, App, SubCommand};
-use nix::Result;
-use std::process::{Command};
+use std::process::{Command, Child, exit};
 use std::fs::File;
 use std::io::prelude::*;
 use std::env::home_dir;
@@ -28,6 +27,8 @@ struct Process {
     #[serde(default)]
     pid: i32,
     #[serde(default)]
+    child_pid: i32,
+    #[serde(default)]
     args: Vec<Vec<String>>
 }
 
@@ -39,6 +40,10 @@ struct Settings {
 impl Process {
     fn set_pid(&mut self, pid: i32) {
         self.pid = pid;
+    }
+
+    fn set_child_pid(&mut self, pid: i32) {
+        self.child_pid = pid;
     }
 }
 
@@ -67,8 +72,8 @@ fn save_process_file(name: String, data: String) {
     file.write_all(data.as_bytes()).unwrap();
 }
 
-fn delete_proces_file(name: String) {
-    std::fs::remove_file(build_process_filename(name)).unwrap();
+fn delete_process_file(pid: i32) {
+    std::fs::remove_file(build_process_filename(format!("{}", pid))).unwrap();
 }
 
 fn build_process_filename(name: String) -> String {
@@ -78,13 +83,16 @@ fn build_process_filename(name: String) -> String {
     format!("{}/{}.json",base_path, name)
 }
 
-fn read_process_file(path: &str) -> Process {
-    let mut file = File::open(path).unwrap();
-    let mut content = String::new();
+fn read_process_file(path: String) -> Process {
+    println!("Reading process file: {}", path);
 
-    file.read_to_string(&mut content).unwrap();
-
-    serde_json::from_str(content.as_str()).unwrap()
+    if let Ok(mut file) = File::open(path) {
+        let mut content = String::new();
+        
+        file.read_to_string(&mut content).unwrap();
+        return serde_json::from_str(content.as_str()).unwrap();
+    }
+    panic!("No process file found");
 }
 
 fn get_active_processes() -> Vec<Process> {
@@ -93,46 +101,85 @@ fn get_active_processes() -> Vec<Process> {
     std::fs::read_dir(base_path).unwrap().map(|entry| {
         let file = entry.unwrap();
         
-        read_process_file(file.path().to_str().unwrap())
+        read_process_file(format!("{}", file.path().to_str().unwrap()))
     }).collect()
 }
 
-fn kill_process(pid: i32) -> Result<()> {
+fn kill_process(pid: i32) -> nix::Result<()> {
     nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid), nix::sys::signal::SIGTERM)
 }
 
-fn monitor(data: &str) {
-    let mut process: Process = serde_json::from_str(data).unwrap();
+fn launch_process(mut process: Process) -> std::result::Result<Child, String> {
     let mut command = Command::new(process.cmd.clone());
     let args = process.args.clone();
 
     for a in args {
         command.args(&a);
     }
-    
-    if let Ok(mut child) = command.spawn() {
+
+    if let Ok(child) = command.spawn() {
         let child_pid = child.id() as i32;  
         let current_pid = i32::from(nix::unistd::getpid());
 
         process.set_pid(current_pid.clone());
-
-        ctrlc::set_handler(move || {
-            if let Ok(_) = kill_process(child_pid) {
-                println!("Child closed");
-                delete_proces_file(format!("{}", current_pid));
-            } else {
-                 println!("error closing child");
-            }
-        }).expect("Error setting Ctrl-C handler");
-
+        process.set_child_pid(child_pid.clone());
         save_process_file(format!("{}", process.pid), serde_json::to_string(&process).unwrap());
 
-        child.wait().expect("Command did not start");
-        println!("Command finished");
-        delete_proces_file(format!("{}", process.pid));
+        println!("Started child process with PID: {}", child.id().clone());
+        
+        Ok(child)
     } else {
-        println!("Could not start command.");
+        Err(String::from("Child process not spawned"))
     }
+}
+
+fn register_sigterm_handler() {
+    println!("Registering sigterm handler.");
+
+    ctrlc::set_handler(move || {
+        println!("SIGTERM arrived!");
+
+        let current_pid = i32::from(nix::unistd::getpid());
+        let process = read_process_file(build_process_filename(format!("{}", current_pid)));
+
+        if let Ok(_) = kill_process(process.child_pid.clone()) {
+            println!("Child closed");
+            delete_process_file(process.pid.clone());
+        } else {
+            println!("error closing child");
+        }
+    }).expect("Error setting Ctrl-C handler");
+}
+
+fn start_monitor(process: Process) {
+    if let Ok(mut child) = launch_process(process.clone()) {
+        if let Ok(status) = child.wait() {
+            match status.code() {
+                Some(code) => {
+                    if code > 0 {
+                        println!("Child process ended with errors, retry!");
+                        start_monitor(process);
+                    } else {
+                        delete_process_file(process.pid);
+                        println!("Child process ended with no errors.");
+                    }
+                },
+                None => {
+                    println!("Child process closed by signals. Stopping.");
+                    delete_process_file(process.pid);
+                    exit(0);
+            }
+            }
+        } else {
+            println!("Process wasn not started");
+        }
+    }
+}
+
+fn monitor(data: &str) {
+    let process: Process = serde_json::from_str(data).unwrap();
+    register_sigterm_handler();
+    start_monitor(process);
 }
 
 fn list() {
@@ -155,6 +202,7 @@ fn list() {
 
 fn stop(process: &str) {
     if let Some(searched_process) = get_active_processes().iter().find(|p| { p.name == String::from(process)}) {
+        println!("Killing process with PID: {}", searched_process.pid.clone());
         kill_process(searched_process.pid).unwrap();
     } else {
         println!("No process to stop");
