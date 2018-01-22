@@ -1,3 +1,4 @@
 [[process]]
 name = "error"
 cmd = "./test_error.sh"
+max_retries = 2
