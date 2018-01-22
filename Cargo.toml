@@ -1,7 +1,7 @@
 [package]
 name = "igniter"
 description = "A simple process manager written in Rust"
-license = "https://opensource.org/licenses/MIT"
+license = "MIT"
 version = "0.1.0"
 authors = ["Paolo Marino <paolomarinos@gmail.com>"]
 repository = "https://github.com/pmarino90/igniter"
