@@ -1,0 +1,3 @@
+[[process]]
+name = "error"
+cmd = "./test_error.sh"
