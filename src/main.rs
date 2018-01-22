@@ -31,7 +31,7 @@ struct Process {
     #[serde(default)]
     args: Vec<Vec<String>>,
     #[serde(default)]
-    restarts: i32,
+    retries: i32,
     #[serde(default)]
     max_retries: i32,
 }
@@ -50,8 +50,8 @@ impl Process {
         self.child_pid = pid;
     }
 
-    fn increment_restarts(&mut self) {
-        self.restarts = self.restarts + 1;
+    fn increment_retries(&mut self) {
+        self.retries = self.retries + 1;
     }
 }
 
@@ -170,9 +170,9 @@ fn start_monitor(mut process: Process) {
                 Some(code) => {
                     if code > 0 {
                         println!("Child process ended with errors, retry!");
-                        process.increment_restarts();
+                        process.increment_retries();
 
-                        if process.restarts <= process.max_retries {
+                        if process.retries <= process.max_retries {
                             start_monitor(process);
                         } else {
                             println!("Too many retries, stopping!");
@@ -206,7 +206,7 @@ fn monitor(data: &str) {
 fn list() {
     let processes = get_active_processes();
     let mut table = Table::new();
-    table.add_row(row!["PID", "NAME", "COMMAND", "ARGS", "STATUS"]);
+    table.add_row(row!["PID", "NAME", "COMMAND", "ARGS", "RETRIES", "MAX RETRIES"]);
     
     for process in processes {
         table.add_row(Row::new(vec![
@@ -214,7 +214,8 @@ fn list() {
             Cell::new(process.name.as_str()),
             Cell::new(process.cmd.as_str()),
             Cell::new(format!("{:?}", process.args).as_str()),
-            Cell::new("??"),
+            Cell::new(format!("{:?}", process.retries).as_str()),
+            Cell::new(format!("{:?}", process.max_retries).as_str()),
         ]));
     }
 
