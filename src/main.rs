@@ -29,7 +29,11 @@ struct Process {
     #[serde(default)]
     child_pid: i32,
     #[serde(default)]
-    args: Vec<Vec<String>>
+    args: Vec<Vec<String>>,
+    #[serde(default)]
+    restarts: i32,
+    #[serde(default)]
+    max_retries: i32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -44,6 +48,10 @@ impl Process {
 
     fn set_child_pid(&mut self, pid: i32) {
         self.child_pid = pid;
+    }
+
+    fn increment_restarts(&mut self) {
+        self.restarts = self.restarts + 1;
     }
 }
 
@@ -151,22 +159,35 @@ fn register_sigterm_handler() {
     }).expect("Error setting Ctrl-C handler");
 }
 
-fn start_monitor(process: Process) {
+fn get_current_process() -> i32 {
+    i32::from(nix::unistd::getpid())
+}
+
+fn start_monitor(mut process: Process) {
     if let Ok(mut child) = launch_process(process.clone()) {
         if let Ok(status) = child.wait() {
             match status.code() {
                 Some(code) => {
                     if code > 0 {
                         println!("Child process ended with errors, retry!");
-                        start_monitor(process);
+                        process.increment_restarts();
+
+                        if process.restarts <= process.max_retries {
+                            start_monitor(process);
+                        } else {
+                            println!("Too many retries, stopping!");
+                            delete_process_file(get_current_process());
+                            exit(0);
+                        }
                     } else {
-                        delete_process_file(process.pid);
+                        delete_process_file(get_current_process());
                         println!("Child process ended with no errors.");
+                        exit(0);
                     }
                 },
                 None => {
                     println!("Child process closed by signals. Stopping.");
-                    delete_process_file(process.pid);
+                    delete_process_file(get_current_process());
                     exit(0);
             }
             }
