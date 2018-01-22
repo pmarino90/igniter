@@ -7,10 +7,10 @@ authors = ["Paolo Marino <paolomarinos@gmail.com>"]
 repository = "https://github.com/pmarino90/igniter"
 
 [dependencies]
-config = "*"
-serde = "*"
-serde_json = "*"
-serde_derive = "*"
+config = "0.7.0"
+serde = "1.0.27"
+serde_json = "1.0.9"
+serde_derive = "1.0.27"
 clap = "2.29.1"
 ctrlc = { version = "3.0", features = ["termination"] }
 nix = "0.9.0"
