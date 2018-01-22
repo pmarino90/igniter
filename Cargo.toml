@@ -3,6 +3,8 @@ name = "igniter"
 description = "A simple process manager written in Rust"
 license = "MIT"
 version = "0.1.0"
+readme = "README.md"
+keywords = ["process", "process-manager"]
 authors = ["Paolo Marino <paolomarinos@gmail.com>"]
 repository = "https://github.com/pmarino90/igniter"
 
