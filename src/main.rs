@@ -11,7 +11,7 @@ extern crate serde_derive;
 extern crate prettytable;
 
 use clap::{Arg, App, SubCommand};
-use std::process::{Command, Child, exit};
+use std::process::{Command, Child};
 use std::fs::File;
 use std::io::prelude::*;
 use std::env::home_dir;
@@ -152,7 +152,6 @@ fn register_sigterm_handler() {
 
         if let Ok(_) = kill_process(process.child_pid.clone()) {
             println!("Child closed");
-            delete_process_file(process.pid.clone());
         } else {
             println!("error closing child");
         }
@@ -176,19 +175,13 @@ fn start_monitor(mut process: Process) {
                             start_monitor(process);
                         } else {
                             println!("Too many retries, stopping!");
-                            delete_process_file(get_current_process());
-                            exit(0);
                         }
                     } else {
-                        delete_process_file(get_current_process());
                         println!("Child process ended with no errors.");
-                        exit(0);
                     }
                 },
                 None => {
                     println!("Child process closed by signals. Stopping.");
-                    delete_process_file(get_current_process());
-                    exit(0);
             }
             }
         } else {
@@ -201,6 +194,7 @@ fn monitor(data: &str) {
     let process: Process = serde_json::from_str(data).unwrap();
     register_sigterm_handler();
     start_monitor(process);
+    delete_process_file(get_current_process());
 }
 
 fn list() {
@@ -248,14 +242,14 @@ fn main() {
         .about("A simple process manager")
         .subcommand(SubCommand::with_name("monitor")
                 .about("Monitors the provided command")
-                .arg(Arg::with_name("command")
+                .arg(Arg::with_name("data")
                     .help("the command to monitor")
                     .index(1)
                     .required(true)
                 )
         )
         .subcommand(SubCommand::with_name("list")
-                .about("list active process")
+                .about("list active processes")
         )
         .subcommand(SubCommand::with_name("stop")
                 .about("Stops an already running process given its name")
@@ -267,7 +261,7 @@ fn main() {
         ).get_matches();
 
     match matches.subcommand() {
-        ("monitor", Some(monitor_matches))  => monitor(monitor_matches.value_of("command").unwrap()),
+        ("monitor", Some(monitor_matches))  => monitor(monitor_matches.value_of("data").unwrap()),
         ("stop", Some(stop_matches))        => stop(stop_matches.value_of("process").unwrap()),
         ("list", Some(_))     => list(),
         ("", None)   => start_processes(), 
