@@ -25,6 +25,8 @@ cargo install igniter
 ```
 ## Usage
 
+With an existing `.igniterc` file into the current working directory issue `igniter` from your terminal and Igniter will spawn all the processes defined into the configuration file.
+
 ### .igniterc
 Create an `.igniterc`, `TOML` syntax supported, file in the root of your project. It is always needed a `.igniterc` file to start monitoring a process.
 ```toml
