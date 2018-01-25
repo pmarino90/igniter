@@ -1,70 +1,30 @@
-extern crate config;
-extern crate serde;
-extern crate serde_json;
+#[macro_use] extern crate clap;
+#[macro_use] extern crate prettytable;
+
+extern crate igniter;
 extern crate ctrlc;
-extern crate nix;
-#[macro_use]
-extern crate clap;
-#[macro_use]
-extern crate serde_derive;
-#[macro_use] 
-extern crate prettytable;
+
+use igniter::os;
+use igniter::monitor;
+use igniter::monitor::Process;
+use igniter::settings::Settings;
 
 use clap::{Arg, App, SubCommand};
-use std::process::{Command, Child};
-use std::fs::File;
-use std::io::prelude::*;
-use std::env::home_dir;
-use config::{FileFormat};
+use std::process::{Command};
 use prettytable::Table;
 use prettytable::row::Row;
 use prettytable::cell::Cell;
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-struct Process {
-    name: String,
-    cmd: String,
-    #[serde(default)]
-    pid: i32,
-    #[serde(default)]
-    child_pid: i32,
-    #[serde(default)]
-    args: Vec<Vec<String>>,
-    #[serde(default)]
-    retries: i32,
-    #[serde(default)]
-    max_retries: i32,
-}
-
-#[derive(Debug, Deserialize)]
-struct Settings {
-    process: Vec<Process>,
-}
-
-impl Process {
-    fn set_pid(&mut self, pid: i32) {
-        self.pid = pid;
-    }
-
-    fn set_child_pid(&mut self, pid: i32) {
-        self.child_pid = pid;
-    }
-
-    fn increment_retries(&mut self) {
-        self.retries = self.retries + 1;
-    }
-}
-
 fn start_processes() {
     println!("Starting processes found in .igniterc");
-    let settings = read_settings();
-    let processes = settings.process;
+    let settings = Settings::read();
+    let processes = settings.list_procs();
 
     for p in processes {
-        let data = serde_json::to_string(&p).unwrap();
+        let data = p.serialize().unwrap();
 
-        println!("Name: {}", p.name);
-        println!("Command: {}", p.cmd);
+        println!("Name: {}", p.data.name);
+        println!("Command: {}", p.data.cmd);
 
         let child = Command::new(std::env::current_exe().unwrap())
         .args(&[String::from("monitor"), data.clone()])
@@ -75,82 +35,15 @@ fn start_processes() {
     }
 }
 
-fn save_process_file(name: String, data: String) {
-    let mut file = File::create(build_process_filename(name)).unwrap();
-    file.write_all(data.as_bytes()).unwrap();
-}
-
-fn delete_process_file(pid: i32) {
-    std::fs::remove_file(build_process_filename(format!("{}", pid))).unwrap();
-}
-
-fn build_process_filename(name: String) -> String {
-    let base_path = format!("{}/.igniter/procs", home_dir().unwrap().display());
-
-    std::fs::create_dir_all(base_path.clone()).unwrap();
-    format!("{}/{}.json",base_path, name)
-}
-
-fn read_process_file(path: String) -> Process {
-    println!("Reading process file: {}", path);
-
-    if let Ok(mut file) = File::open(path) {
-        let mut content = String::new();
-        
-        file.read_to_string(&mut content).unwrap();
-        return serde_json::from_str(content.as_str()).unwrap();
-    }
-    panic!("No process file found");
-}
-
-fn get_active_processes() -> Vec<Process> {
-    let base_path = format!("{}/.igniter/procs", home_dir().unwrap().display());
-
-    std::fs::read_dir(base_path).unwrap().map(|entry| {
-        let file = entry.unwrap();
-        
-        read_process_file(format!("{}", file.path().to_str().unwrap()))
-    }).collect()
-}
-
-fn kill_process(pid: i32) -> nix::Result<()> {
-    nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid), nix::sys::signal::SIGTERM)
-}
-
-fn launch_process(mut process: Process) -> std::result::Result<Child, String> {
-    let mut command = Command::new(process.cmd.clone());
-    let args = process.args.clone();
-
-    for a in args {
-        command.args(&a);
-    }
-
-    if let Ok(child) = command.spawn() {
-        let child_pid = child.id() as i32;  
-        let current_pid = i32::from(nix::unistd::getpid());
-
-        process.set_pid(current_pid.clone());
-        process.set_child_pid(child_pid.clone());
-        save_process_file(format!("{}", process.pid), serde_json::to_string(&process).unwrap());
-
-        println!("Started child process with PID: {}", child.id().clone());
-        
-        Ok(child)
-    } else {
-        Err(String::from("Child process not spawned"))
-    }
-}
-
-fn register_sigterm_handler() {
+fn register_sigterm_handler(name: String) {
     println!("Registering sigterm handler.");
 
     ctrlc::set_handler(move || {
         println!("SIGTERM arrived!");
 
-        let current_pid = i32::from(nix::unistd::getpid());
-        let process = read_process_file(build_process_filename(format!("{}", current_pid)));
+        let process = monitor::file::read(monitor::file::path_from_name(name.clone())).unwrap();
 
-        if let Ok(_) = kill_process(process.child_pid.clone()) {
+        if let Ok(_) = os::kill(process.data.child_pid) {
             println!("Child closed");
         } else {
             println!("error closing child");
@@ -158,81 +51,42 @@ fn register_sigterm_handler() {
     }).expect("Error setting Ctrl-C handler");
 }
 
-fn get_current_process() -> i32 {
-    i32::from(nix::unistd::getpid())
-}
-
-fn start_monitor(mut process: Process) {
-    if let Ok(mut child) = launch_process(process.clone()) {
-        if let Ok(status) = child.wait() {
-            match status.code() {
-                Some(code) => {
-                    if code > 0 {
-                        println!("Child process ended with errors, retry!");
-                        process.increment_retries();
-
-                        if process.retries <= process.max_retries {
-                            start_monitor(process);
-                        } else {
-                            println!("Too many retries, stopping!");
-                        }
-                    } else {
-                        println!("Child process ended with no errors.");
-                    }
-                },
-                None => {
-                    println!("Child process closed by signals. Stopping.");
-            }
-            }
-        } else {
-            println!("Process wasn not started");
-        }
-    }
-}
-
 fn monitor(data: &str) {
-    let process: Process = serde_json::from_str(data).unwrap();
-    register_sigterm_handler();
-    start_monitor(process);
-    delete_process_file(get_current_process());
+    let mut process = Process::from(data);
+
+    register_sigterm_handler(process.data.name.clone());
+    monitor::start(&mut process);
+
+    monitor::file::delete(monitor::file::path_from_name(process.data.name)).unwrap();
 }
 
 fn list() {
-    let processes = get_active_processes();
+    let processes = monitor::active_processes();
     let mut table = Table::new();
-    table.add_row(row!["PID", "NAME", "COMMAND", "ARGS", "RETRIES", "MAX RETRIES"]);
+    table.add_row(row!["MONITOR PID", "CHILD PID", "NAME", "COMMAND", "ARGS", "RETRIES", "MAX RETRIES"]);
     
     for process in processes {
         table.add_row(Row::new(vec![
-            Cell::new(format!("{}", process.pid).as_str()),
-            Cell::new(process.name.as_str()),
-            Cell::new(process.cmd.as_str()),
-            Cell::new(format!("{:?}", process.args).as_str()),
-            Cell::new(format!("{:?}", process.retries).as_str()),
-            Cell::new(format!("{:?}", process.max_retries).as_str()),
+            Cell::new(format!("{}", process.data.monitor_pid).as_str()),
+            Cell::new(format!("{}", process.data.child_pid).as_str()),
+            Cell::new(process.data.name.as_str()),
+            Cell::new(process.data.cmd.as_str()),
+            Cell::new(format!("{:?}", process.data.args).as_str()),
+            Cell::new(format!("{:?}", process.data.retries).as_str()),
+            Cell::new(format!("{:?}", process.data.max_retries).as_str()),
         ]));
     }
 
     table.printstd();
 }
 
-fn stop(process: &str) {
-    if let Some(searched_process) = get_active_processes().iter().find(|p| { p.name == String::from(process)}) {
-        println!("Killing process with PID: {}", searched_process.pid.clone());
-        kill_process(searched_process.pid).unwrap();
+fn stop(process_name: &str) {
+    if let Some(searched_process) = monitor::active_processes().iter().find(|p| { p.data.name == String::from(process_name)}) {
+        println!("Killing process {} with Monitor PID: {}", process_name, searched_process.data.monitor_pid.clone());
+        searched_process.kill().unwrap();
     } else {
-        println!("No process to stop");
+        println!("Process {} not found", process_name);
     }
-}
-
-fn read_settings() -> Settings {
-    let mut config = config::Config::default();
-
-    config
-        .merge(config::File::new(".igniterc", FileFormat::Toml))
-        .expect("No .igniterc file found!");
-
-    config.try_into::<Settings>().unwrap()
 }
 
 fn main() {
@@ -263,8 +117,8 @@ fn main() {
     match matches.subcommand() {
         ("monitor", Some(monitor_matches))  => monitor(monitor_matches.value_of("data").unwrap()),
         ("stop", Some(stop_matches))        => stop(stop_matches.value_of("process").unwrap()),
-        ("list", Some(_))     => list(),
-        ("", None)   => start_processes(), 
-        _            => unreachable!(), 
+        ("list", Some(_))                   => list(),
+        ("", None)                          => start_processes(),
+        _                                   => unreachable!(),
     }
 }

@@ -8,6 +8,11 @@ keywords = ["process", "process-manager"]
 authors = ["Paolo Marino <paolomarinos@gmail.com>"]
 repository = "https://github.com/pmarino90/igniter"
 
+[[bin]]
+doc = false
+path = "src/main.rs"
+name = "igniter"
+
 [dependencies]
 config = "0.7.0"
 serde = "1.0.27"
