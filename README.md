@@ -1,5 +1,9 @@
 # Igniter
-A simple process manager written in Rust.
+A simple process manager written in Rust.  
+
+[![Build Status](https://api.travis-ci.org/pmarino90/igniter.svg?branch=master)](https://travis-ci.org/pmarino90/igniter)
+[![crates.io](https://img.shields.io/crates/v/igniter.svg)](https://crates.io/crates/igniter)
+
 
 **UNDER ACTIVE DEVELOPMENT**
 
@@ -13,7 +17,7 @@ Igniter is in its early stages, under active development and for such reasons is
 Suggestion and/or requests are always welcome!
 
 ### Supported operating systems
-Given its dependencies the supported OSs are the ones which are supported by `nix` (look (here)[https://github.com/nix-rust/nix#supported-platforms]), this does not directly means that all the version are tested.
+Given its dependencies the supported OSs are the ones which are supported by `nix` (look [here](https://github.com/nix-rust/nix#supported-platforms)), this does not directly means that all the version are tested.
 
 Currently there is no **Windows** support.
 
