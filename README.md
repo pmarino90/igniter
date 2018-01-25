@@ -13,7 +13,7 @@ Igniter is in its early stages, under active development and for such reasons is
 Suggestion and/or requests are always welcome!
 
 ### Supported operating systems
-Given its dependencies the supported OSs are the ones which are supported by `nix` (link), this does not directly means that all the version are tested.
+Given its dependencies the supported OSs are the ones which are supported by `nix` (look (here)[https://github.com/nix-rust/nix#supported-platforms]), this does not directly means that all the version are tested.
 
 Currently there is no **Windows** support.
 
@@ -62,7 +62,14 @@ SUBCOMMANDS:
 
 ## Todo
 [x] Process restart on fail  
+[x] Refactor  
 [] Environment variables  
-[] Refactor  
 [] Log Management  
 [] Context awareness (Workspaces)  
+
+## Changelog
+* v0.1.0  
+    * First version
+* v0.1.1
+    * Code refactor
+    * minor bug fixes
