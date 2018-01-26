@@ -72,6 +72,13 @@ impl Process {
     self.data.retries <= self.data.max_retries
   }
 
+  pub fn is_active(&self) -> bool {
+    match os::ps(self.data.monitor_pid) {
+      Some(_) => true,
+      None => false
+    }
+  }
+
   pub fn save_state(&self) -> io::Result<()> {
     println!("saving state");
     file::save(file::path_from_name(self.data.name.clone()), &self)
@@ -79,7 +86,7 @@ impl Process {
 
   pub fn serialize(&self) -> serde_json::Result<String> {
     serde_json::to_string(&self.data.clone())
-  } 
+  }
 }
 
 impl From<String> for Process {
