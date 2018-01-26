@@ -41,7 +41,7 @@ pub fn active_processes() -> Vec<Process> {
   fs::read_dir(base_path).unwrap().map(|entry| {
     let file = entry.unwrap();
     let path = format!("{}", file.path().to_str().unwrap());
-        
+    
     file::read(path).unwrap()
-  }).collect()
+  }).filter(|p| { p.is_active() }).collect()
 }
