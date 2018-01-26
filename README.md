@@ -67,7 +67,7 @@ SUBCOMMANDS:
 ## Todo
 [x] Process restart on fail  
 [x] Refactor  
-[] Environment variables  
+[x] Environment variables  
 [] Log Management  
 [] Context awareness (Workspaces)  
 
