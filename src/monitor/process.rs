@@ -7,6 +7,7 @@ use std::process::{Command, Child};
 use serde_json;
 
 type CmdArgs = Vec<Vec<String>>;
+type CmdEnv = Vec<Vec<String>>;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ProcessData {
@@ -18,6 +19,8 @@ pub struct ProcessData {
     pub child_pid: i32,
     #[serde(default)]
     pub args: CmdArgs,
+    #[serde(default)]
+    pub env: CmdEnv,
     #[serde(default)]
     pub retries: i32,
     #[serde(default)]
@@ -32,8 +35,10 @@ impl Process {
   pub fn spawn(&mut self) -> Result<Child, Error> {
     let mut command = Command::new(self.data.cmd.clone());
     let args = self.data.args.clone();
+    let env =  self.data.env.clone();
 
     build_args(&mut command, args);
+    build_env_vars(&mut command, env);
 
     match command.spawn() {
       Ok(child) => {
@@ -108,5 +113,16 @@ impl<'a> From<&'a str> for Process {
 fn build_args(cmd: &mut Command, args: CmdArgs) {
   for a in args {
     cmd.args(&a);
+  }
+}
+
+fn build_env_vars(cmd: &mut Command, vars: CmdEnv) {
+  println!("{:?}", vars);
+
+  for v in vars {
+    let key = v[0].clone();
+    let value = v[1].clone();
+
+    cmd.env(key, value);
   }
 }

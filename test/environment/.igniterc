@@ -1,0 +1,4 @@
+[[process]]
+name = "env"
+cmd = "./env.sh"
+env = [["FOO", "BAR"]]
