@@ -1,7 +1,5 @@
 #!/bin/bash
 
-echo "CIAONE";
-
 echo $FOO;
 
 sleep 10;
