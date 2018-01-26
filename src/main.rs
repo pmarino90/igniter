@@ -91,7 +91,7 @@ fn stop(process_name: &str) {
 
 fn main() {
     let matches = App::new(crate_name!())
-        .version("0.1.0")
+        .version(crate_version!())
         .author(crate_authors!("\n"))
         .about("A simple process manager")
         .subcommand(SubCommand::with_name("monitor")
