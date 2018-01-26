@@ -72,8 +72,10 @@ SUBCOMMANDS:
 [] Context awareness (Workspaces)  
 
 ## Changelog
-* v0.1.0  
+### v0.1.0  
     * First version
-* v0.1.1
+### v0.1.1
     * Code refactor
     * minor bug fixes
+### v0.1.2
+    * Filters processes by their status on the system
