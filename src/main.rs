@@ -56,8 +56,6 @@ fn monitor(data: &str) {
 
     register_sigterm_handler(process.data.name.clone());
     monitor::start(&mut process);
-
-    monitor::file::delete(monitor::file::path_from_name(process.data.name)).unwrap();
 }
 
 fn list(all: bool) {
