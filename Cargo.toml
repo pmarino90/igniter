@@ -13,6 +13,9 @@ doc = false
 path = "src/main.rs"
 name = "igniter"
 
+[badges]
+travis-ci = { repository = "pmarino90/igniter" }
+
 [dependencies]
 config = "0.7.0"
 serde = "1.0.27"
