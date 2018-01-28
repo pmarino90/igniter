@@ -60,8 +60,8 @@ fn monitor(data: &str) {
     monitor::file::delete(monitor::file::path_from_name(process.data.name)).unwrap();
 }
 
-fn list() {
-    let processes = monitor::active_processes();
+fn list(all: bool) {
+    let processes = monitor::list_processes(all);
     let mut table = Table::new();
     table.add_row(row!["MONITOR PID", "CHILD PID", "NAME", "COMMAND", "ARGS", "RETRIES", "MAX RETRIES"]);
     
@@ -81,7 +81,7 @@ fn list() {
 }
 
 fn stop(process_name: &str) {
-    if let Some(searched_process) = monitor::active_processes().iter().find(|p| { p.data.name == String::from(process_name)}) {
+    if let Some(searched_process) = monitor::list_processes(false).iter().find(|p| { p.data.name == String::from(process_name)}) {
         println!("Killing process {} with Monitor PID: {}", process_name, searched_process.data.monitor_pid.clone());
         searched_process.kill().unwrap();
     } else {
@@ -104,6 +104,11 @@ fn main() {
         )
         .subcommand(SubCommand::with_name("list")
                 .about("list active processes")
+                .arg(Arg::with_name("all")
+                    .long("all")
+                    .short("-a")
+                    .help("Show all processes")
+                )
         )
         .subcommand(SubCommand::with_name("stop")
                 .about("Stops an already running process given its name")
@@ -117,7 +122,7 @@ fn main() {
     match matches.subcommand() {
         ("monitor", Some(monitor_matches))  => monitor(monitor_matches.value_of("data").unwrap()),
         ("stop", Some(stop_matches))        => stop(stop_matches.value_of("process").unwrap()),
-        ("list", Some(_))                   => list(),
+        ("list", Some(list_matches))        => list(list_matches.is_present("all")),
         ("", None)                          => start_processes(),
         _                                   => unreachable!(),
     }

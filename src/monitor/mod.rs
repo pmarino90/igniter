@@ -35,7 +35,7 @@ pub fn start(process: &mut Process) {
   }
 }
 
-pub fn active_processes() -> Vec<Process> {
+pub fn list_processes(all: bool) -> Vec<Process> {
   let base_path = file::procs_path();
   
   fs::read_dir(base_path).unwrap().map(|entry| {
@@ -43,5 +43,5 @@ pub fn active_processes() -> Vec<Process> {
     let path = format!("{}", file.path().to_str().unwrap());
     
     file::read(path).unwrap()
-  }).filter(|p| { p.is_active() }).collect()
+  }).filter(|p| { all || p.is_active() }).collect()
 }
