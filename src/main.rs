@@ -1,16 +1,18 @@
-#[macro_use] extern crate clap;
-#[macro_use] extern crate prettytable;
+#[macro_use]
+extern crate clap;
+#[macro_use]
+extern crate prettytable;
 
-extern crate igniter;
 extern crate ctrlc;
+extern crate igniter;
 
 use igniter::os;
 use igniter::monitor;
 use igniter::monitor::Process;
 use igniter::settings::Settings;
 
-use clap::{Arg, App, SubCommand};
-use std::process::{Command};
+use clap::{App, Arg, SubCommand};
+use std::process::Command;
 use prettytable::Table;
 use prettytable::row::Row;
 use prettytable::cell::Cell;
@@ -27,9 +29,9 @@ fn start_processes() {
         println!("Command: {}", p.data.cmd);
 
         let child = Command::new(std::env::current_exe().unwrap())
-        .args(&[String::from("monitor"), data.clone()])
-        .spawn()
-        .expect("Error while starting command");
+            .args(&[String::from("monitor"), data.clone()])
+            .spawn()
+            .expect("Error while starting command");
 
         println!("Manager process started with PID: {}", child.id());
     }
@@ -61,8 +63,16 @@ fn monitor(data: &str) {
 fn list(all: bool) {
     let processes = monitor::list_processes(all);
     let mut table = Table::new();
-    table.add_row(row!["MONITOR PID", "CHILD PID", "NAME", "COMMAND", "ARGS", "RETRIES", "MAX RETRIES"]);
-    
+    table.add_row(row![
+        "MONITOR PID",
+        "CHILD PID",
+        "NAME",
+        "COMMAND",
+        "ARGS",
+        "RETRIES",
+        "MAX RETRIES"
+    ]);
+
     for process in processes {
         table.add_row(Row::new(vec![
             Cell::new(format!("{}", process.data.monitor_pid).as_str()),
@@ -79,8 +89,15 @@ fn list(all: bool) {
 }
 
 fn stop(process_name: &str) {
-    if let Some(searched_process) = monitor::list_processes(false).iter().find(|p| { p.data.name == String::from(process_name)}) {
-        println!("Killing process {} with Monitor PID: {}", process_name, searched_process.data.monitor_pid.clone());
+    if let Some(searched_process) = monitor::list_processes(false)
+        .iter()
+        .find(|p| p.data.name == String::from(process_name))
+    {
+        println!(
+            "Killing process {} with Monitor PID: {}",
+            process_name,
+            searched_process.data.monitor_pid.clone()
+        );
         searched_process.kill().unwrap();
     } else {
         println!("Process {} not found", process_name);
@@ -92,36 +109,43 @@ fn main() {
         .version(crate_version!())
         .author(crate_authors!("\n"))
         .about("A simple process manager")
-        .subcommand(SubCommand::with_name("monitor")
+        .subcommand(
+            SubCommand::with_name("monitor")
                 .about("[INTERNAL] Monitors the provided command data as JSON")
-                .arg(Arg::with_name("data")
-                    .help("Data needed to start the monitoring process.")
-                    .index(1)
-                    .required(true)
-                )
+                .arg(
+                    Arg::with_name("data")
+                        .help("Data needed to start the monitoring process.")
+                        .index(1)
+                        .required(true),
+                ),
         )
-        .subcommand(SubCommand::with_name("list")
+        .subcommand(
+            SubCommand::with_name("list")
                 .about("list active processes")
-                .arg(Arg::with_name("all")
-                    .long("all")
-                    .short("-a")
-                    .help("Show all processes")
-                )
+                .arg(
+                    Arg::with_name("all")
+                        .long("all")
+                        .short("-a")
+                        .help("Show all processes"),
+                ),
         )
-        .subcommand(SubCommand::with_name("stop")
+        .subcommand(
+            SubCommand::with_name("stop")
                 .about("Stops an already running process given its name")
-                .arg(Arg::with_name("process")
-                    .help("The process to stop")
-                    .index(1)
-                    .required(true)
-                )
-        ).get_matches();
+                .arg(
+                    Arg::with_name("process")
+                        .help("The process to stop")
+                        .index(1)
+                        .required(true),
+                ),
+        )
+        .get_matches();
 
     match matches.subcommand() {
-        ("monitor", Some(monitor_matches))  => monitor(monitor_matches.value_of("data").unwrap()),
-        ("stop", Some(stop_matches))        => stop(stop_matches.value_of("process").unwrap()),
-        ("list", Some(list_matches))        => list(list_matches.is_present("all")),
-        ("", None)                          => start_processes(),
-        _                                   => unreachable!(),
+        ("monitor", Some(monitor_matches)) => monitor(monitor_matches.value_of("data").unwrap()),
+        ("stop", Some(stop_matches)) => stop(stop_matches.value_of("process").unwrap()),
+        ("list", Some(list_matches)) => list(list_matches.is_present("all")),
+        ("", None) => start_processes(),
+        _ => unreachable!(),
     }
 }
