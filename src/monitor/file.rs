@@ -1,7 +1,7 @@
 use monitor::{Process};
 
 use std::io;
-use std::env::home_dir;
+use dirs::home_dir;
 use std::fs;
 use std::io::prelude::*;
 use serde_json;

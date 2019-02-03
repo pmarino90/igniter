@@ -5,6 +5,7 @@ extern crate prettytable;
 
 extern crate ctrlc;
 extern crate igniter;
+extern crate dirs;
 
 use igniter::os;
 use igniter::monitor;
