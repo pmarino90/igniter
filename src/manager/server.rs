@@ -6,8 +6,10 @@ use std::time::Duration;
 
 use daemonize::Daemonize;
 
+use crate::config;
 use crate::manager;
 use crate::rpc;
+
 struct Monitor {
     server: rpc::Server,
     jobs: Vec<manager::Job>,
@@ -33,7 +35,7 @@ impl Monitor {
     }
 }
 
-pub fn start(config_dir: &Path, daemonize: bool) {
+pub fn start(config_dir: &Path, config: config::Config, daemonize: bool) {
     let pid_file = if daemonize {
         let pid_file = config_dir.join("daemon.pid");
 
@@ -56,11 +58,11 @@ pub fn start(config_dir: &Path, daemonize: bool) {
 
     let mut monitor = Monitor {
         server,
-        jobs: vec![manager::Job::new(
-            "main".to_owned(),
-            "sleep".to_owned(),
-            vec!["3".to_owned()],
-        )],
+        jobs: config
+            .job
+            .into_iter()
+            .map(|(name, job_config)| manager::Job::new(name, job_config.command, job_config.args))
+            .collect(),
     };
     monitor.run();
 

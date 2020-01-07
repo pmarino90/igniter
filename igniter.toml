@@ -1,0 +1,7 @@
+[job.sleep-three]
+command= "sleep"
+args = ["3"]
+
+[job.sleep-five]
+command = "sleep"
+args = ["5"]

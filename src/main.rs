@@ -1,8 +1,10 @@
+use std::env;
 use std::fs;
 use std::io;
 
 use clap::{App, AppSettings, Arg, SubCommand};
 
+use igniter::config;
 use igniter::manager;
 use igniter::rpc;
 
@@ -25,7 +27,7 @@ fn create_config_dir() -> Option<std::path::PathBuf> {
     Some(config_dir)
 }
 
-fn main() {
+fn main() -> io::Result<()> {
     let matches = App::new(PKG_NAME)
         .version(
             format!(
@@ -51,9 +53,13 @@ fn main() {
 
     let config_dir = create_config_dir().expect("couldn't create config dir.");
 
+    let current_dir = env::current_dir()?;
+    let config = config::load_config(current_dir.join("igniter.toml"))
+        .expect("could not load configuration");
+
     if let Some(server_matches) = matches.subcommand_matches("server") {
         let daemonize = !server_matches.is_present("no-daemon");
-        manager::server::start(&config_dir, daemonize);
+        manager::server::start(&config_dir, config, daemonize);
     } else if let Some(_) = matches.subcommand_matches("kill") {
         let mut client = rpc::Client::new(&config_dir).unwrap();
         client.request(&rpc::Message::Quit).unwrap();
@@ -63,4 +69,6 @@ fn main() {
         client.request(&rpc::Message::Status).unwrap();
         println!("running.");
     }
+
+    Ok(())
 }
