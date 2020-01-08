@@ -62,7 +62,7 @@ pub fn start(config_dir: &Path, config: config::Config, daemonize: bool) {
             .process
             .into_iter()
             .map(|(name, process_config)| {
-                manager::Process::new(name, process_config.command, process_config.args)
+                manager::Process::new(name, process_config.program, process_config.args)
             })
             .collect(),
     };

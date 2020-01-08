@@ -1,7 +1,7 @@
 [process.sleep-three]
-command= "sleep"
+program = "sleep"
 args = ["3"]
 
 [process.sleep-five]
-command = "sleep"
+program = "sleep"
 args = ["5"]
