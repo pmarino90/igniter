@@ -1,3 +1,17 @@
+//! This module handles the communication between the Igniter manager
+//! and clients.
+//!
+//! The RPC provide one type for each end of the communication:
+//!
+//!   - `Server` - Can check for pending requests with the
+//!                non-blocking method `try_receive`.
+//!
+//!   - `Client` - It can use `.request()` to make a request to the
+//!                corresponding server.
+//!
+//! Both ends can exchange values of type `Message`. Messages are
+//! serialized/deserialized with Serde and sent through Unix Sockets.
+
 use std::fs;
 use std::io;
 use std::io::prelude::*;
@@ -8,6 +22,7 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 
 #[derive(Serialize, Deserialize, Debug)]
+/// A message to be exchanged between a `Client` and `Server`.
 pub enum Message {
     Quit,
     Status,
@@ -30,12 +45,17 @@ pub struct Client {
 }
 
 impl Client {
+    /// Create a client based on the `config_dir`.
     pub fn new(config_dir: &Path) -> io::Result<Client> {
         let socket_file = get_socket_file(config_dir);
         let stream = UnixStream::connect(socket_file)?;
         Ok(Client { stream })
     }
 
+    /// Send Message to the corresponding server.
+    ///
+    /// Fail if the request can't be served, for example, because the
+    /// server is not running.
     pub fn request(&mut self, msg: &Message) -> io::Result<()> {
         let bytes = &encode(msg).unwrap();
         self.stream.write_all(bytes)?;
@@ -48,6 +68,7 @@ pub struct Server {
 }
 
 impl Server {
+    /// Create and bind a new server based on `config_dir.`
     pub fn new(config_dir: &Path) -> io::Result<Server> {
         let socket_file = get_socket_file(config_dir);
         let _ = fs::remove_file(&socket_file);
@@ -58,6 +79,11 @@ impl Server {
         Ok(Server { listener })
     }
 
+    /// Try to receive a message.
+    ///
+    /// If no message is available, A Ok(None) is returned. Errors are
+    /// only returned when we can't read messages from the socket for
+    /// some reason.
     pub fn try_receive(&mut self) -> io::Result<Option<Message>> {
         match self.listener.accept() {
             Ok((mut stream, _)) => {
