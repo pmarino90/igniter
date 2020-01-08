@@ -1,4 +1,4 @@
 mod job;
 pub mod server;
 
-pub use job::{DesiredJobStatus, Job, JobStatus};
+pub use job::{Job, Status};

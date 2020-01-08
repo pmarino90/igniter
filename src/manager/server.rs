@@ -19,7 +19,7 @@ impl Monitor {
     fn run(&mut self) {
         loop {
             for job in self.jobs.iter_mut() {
-                let desired_status = manager::DesiredJobStatus::Running(());
+                let desired_status = manager::Status::Running;
                 let _ = job.try_reconciliate(&desired_status);
             }
 

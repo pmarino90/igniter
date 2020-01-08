@@ -1,7 +1,6 @@
 //! A temporary wrapper around concurrently.
 
 use std::env;
-use std::env;
 use std::io;
 
 use clap::{App, Arg};
@@ -30,11 +29,12 @@ fn main() -> io::Result<()> {
         .arg(Arg::with_name("raw").long("raw"))
         .get_matches();
 
-    let mut PATH = env::var("PATH").unwrap_or("");
+    let mut path = String::from("");
+    path.push_str(env::var("PATH").as_ref().unwrap_or(&"".to_string()));
 
     process::Command::new("yarn")
         .arg("run")
-        // .env("PATH", "/bin")
+        .env("PATH", path)
         .status()
         .expect("fail to run yarn");
 
