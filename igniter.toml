@@ -1,7 +1,7 @@
-[job.sleep-three]
+[process.sleep-three]
 command= "sleep"
 args = ["3"]
 
-[job.sleep-five]
+[process.sleep-five]
 command = "sleep"
 args = ["5"]

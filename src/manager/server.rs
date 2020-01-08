@@ -12,15 +12,15 @@ use crate::rpc;
 
 struct Monitor {
     server: rpc::Server,
-    jobs: Vec<manager::Job>,
+    processs: Vec<manager::Process>,
 }
 
 impl Monitor {
     fn run(&mut self) {
         loop {
-            for job in self.jobs.iter_mut() {
+            for process in self.processs.iter_mut() {
                 let desired_status = manager::Status::Running;
-                let _ = job.try_reconciliate(&desired_status);
+                let _ = process.try_reconciliate(&desired_status);
             }
 
             if let Some(msg) = self.server.try_receive().unwrap() {
@@ -58,10 +58,12 @@ pub fn start(config_dir: &Path, config: config::Config, daemonize: bool) {
 
     let mut monitor = Monitor {
         server,
-        jobs: config
-            .job
+        processs: config
+            .process
             .into_iter()
-            .map(|(name, job_config)| manager::Job::new(name, job_config.command, job_config.args))
+            .map(|(name, process_config)| {
+                manager::Process::new(name, process_config.command, process_config.args)
+            })
             .collect(),
     };
     monitor.run();

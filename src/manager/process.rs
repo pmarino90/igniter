@@ -1,24 +1,24 @@
 use std::io;
 use std::process::{Child, Command};
 
-pub struct Job {
+pub struct Process {
     name: String,
     command: Command,
     child: Option<Child>,
 }
 
-impl Job {
-    pub fn new(name: String, program: String, args: Vec<String>) -> Job {
+impl Process {
+    pub fn new(name: String, program: String, args: Vec<String>) -> Process {
         let mut command = Command::new(program);
         command.args(args);
-        Job {
+        Process {
             name,
             command,
             child: None,
         }
     }
 
-    /// Return the current status of a job.
+    /// Return the current status of a process.
     pub fn status(&mut self) -> io::Result<Status> {
         let child = &mut self.child;
         match child {

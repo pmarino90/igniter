@@ -8,12 +8,13 @@ use toml;
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
-    pub job: HashMap<String, Job>,
+    pub process: HashMap<String, Process>,
 }
 
 #[derive(Deserialize, Debug)]
-pub struct Job {
+pub struct Process {
     pub command: String,
+    #[serde(default)]
     pub args: Vec<String>,
 }
 

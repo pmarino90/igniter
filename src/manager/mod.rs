@@ -1,4 +1,4 @@
-mod job;
+mod process;
 pub mod server;
 
-pub use job::{Job, Status};
+pub use process::{Process, Status};
