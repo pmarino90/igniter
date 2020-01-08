@@ -1,6 +1,5 @@
 use std::io;
-use std::process::Command;
-use std::process::{Child, ExitStatus};
+use std::process::{Child, Command, ExitStatus};
 
 pub struct Job {
     name: String,
