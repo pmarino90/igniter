@@ -94,12 +94,9 @@ impl Server {
         match self.listener.accept() {
             Ok((mut stream, _)) => {
                 let mut request: Vec<u8> = Vec::new();
-                stream.read_to_end(&mut request).expect("couldn't command");
-
-                let msg = decode(&request).unwrap();
-
+                stream.read_to_end(&mut request)?;
+                let msg = decode(&request)?;
                 println!("msg: {:?}", msg);
-
                 Ok(Some(msg))
             }
             Err(err) => match err.kind() {

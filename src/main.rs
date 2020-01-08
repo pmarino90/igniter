@@ -1,6 +1,7 @@
 use std::env;
 use std::fs;
 use std::io;
+use std::iter;
 
 use clap::{App, AppSettings, Arg, SubCommand};
 
@@ -30,6 +31,21 @@ fn create_config_dir() -> Option<std::path::PathBuf> {
 const PROCESS_NAME_ARG: &str = "PROCESS_NAME";
 const NO_DAEMON_ARG: &str = "no-daemon";
 
+fn select_processes<'a>(
+    name: Option<&str>,
+    config: &'a config::Config,
+) -> Vec<(&'a String, &'a config::Process)> {
+    match name {
+        None => config.process.iter().collect(),
+        Some(name) => iter::once(&name.to_string())
+            .map(|name| match config.process.get_key_value(name) {
+                Some((name, config)) => (name, config),
+                None => panic!("Unknown process in the config by name {}", name),
+            })
+            .collect(),
+    }
+}
+
 fn main() -> io::Result<()> {
     let matches = App::new(PKG_NAME)
         .version(
@@ -43,6 +59,9 @@ fn main() -> io::Result<()> {
         .author(PKG_AUTHORS)
         .about(PKG_DESCRIPTION)
         .setting(AppSettings::ArgRequiredElseHelp)
+        .subcommand(SubCommand::with_name("start").arg(Arg::with_name(PROCESS_NAME_ARG).index(1)))
+        .subcommand(SubCommand::with_name("stop").arg(Arg::with_name(PROCESS_NAME_ARG).index(1)))
+        .subcommand(SubCommand::with_name("status"))
         .subcommand(
             SubCommand::with_name("server").arg(
                 Arg::with_name(NO_DAEMON_ARG)
@@ -50,10 +69,7 @@ fn main() -> io::Result<()> {
                     .help("Do not dettach the server from the current terminal."),
             ),
         )
-        .subcommand(SubCommand::with_name("status"))
         .subcommand(SubCommand::with_name("kill"))
-        .subcommand(SubCommand::with_name("start").arg(Arg::with_name(PROCESS_NAME_ARG).index(1)))
-        .subcommand(SubCommand::with_name("stop").arg(Arg::with_name(PROCESS_NAME_ARG).index(1)))
         .get_matches();
 
     let config_dir = create_config_dir().expect("couldn't create config dir.");
@@ -61,6 +77,29 @@ fn main() -> io::Result<()> {
     let current_dir = env::current_dir()?;
 
     match matches.subcommand() {
+        ("start", Some(submatches)) => {
+            let mut client = rpc::Client::new(&config_dir).unwrap();
+
+            let config = config::load_config(current_dir.join("igniter.toml"))
+                .expect("could not load configuration");
+
+            let processes = select_processes(submatches.value_of(PROCESS_NAME_ARG), &config);
+
+            for (name, process) in processes.into_iter() {
+                // TODO: I don't want to have to clone name and
+                // process just to encode.. ??
+                let msg = rpc::Message::Start(name.to_string(), process.clone());
+                client.request(&msg).unwrap();
+            }
+        }
+
+        ("stop", Some(_submatches)) => {}
+
+        ("status", _) => {
+            let mut client = rpc::Client::new(&config_dir).unwrap();
+            client.request(&rpc::Message::Status).unwrap();
+        }
+
         ("server", Some(submatches)) => {
             let daemonize = !submatches.is_present("no-daemon");
             manager::server::start(&config_dir, daemonize);
@@ -70,28 +109,6 @@ fn main() -> io::Result<()> {
             let mut client = rpc::Client::new(&config_dir).unwrap();
             client.request(&rpc::Message::Quit).unwrap();
         }
-
-        ("status", _) => {
-            let mut client = rpc::Client::new(&config_dir).unwrap();
-            client.request(&rpc::Message::Status).unwrap();
-        }
-
-        ("start", Some(submatches)) => {
-            let mut client = rpc::Client::new(&config_dir).unwrap();
-
-            let config = config::load_config(current_dir.join("igniter.toml"))
-                .expect("could not load configuration");
-
-            let process_name = submatches.value_of(PROCESS_NAME_ARG);
-
-            for (name, process) in config.process {
-                if process_name.unwrap_or(&name) == name {
-                    client.request(&rpc::Message::Start(name, process)).unwrap();
-                }
-            }
-        }
-
-        ("stop", Some(_submatches)) => {}
 
         _ => unreachable!(),
     }

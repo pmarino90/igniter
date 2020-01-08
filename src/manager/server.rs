@@ -22,7 +22,7 @@ impl Monitor {
                 let _ = process.try_reconciliate(&desired_status);
             }
 
-            if let Some(msg) = self.server.try_receive().unwrap() {
+            if let Ok(Some(msg)) = self.server.try_receive() {
                 match msg {
                     rpc::Message::Start(_, _) => {}
                     rpc::Message::Stop(_process_name) => {}

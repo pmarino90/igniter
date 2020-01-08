@@ -16,7 +16,7 @@ pub struct Config {
 }
 
 /// Configuration of an individual process.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Process {
     /// Program to execute to start the process.
     pub program: String,
