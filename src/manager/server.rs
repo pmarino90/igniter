@@ -6,7 +6,6 @@ use std::time::Duration;
 
 use daemonize::Daemonize;
 
-use crate::config;
 use crate::manager;
 use crate::rpc;
 
@@ -25,6 +24,8 @@ impl Monitor {
 
             if let Some(msg) = self.server.try_receive().unwrap() {
                 match msg {
+                    rpc::Message::Start(_, _) => {}
+                    rpc::Message::Stop(_process_name) => {}
                     rpc::Message::Quit => break,
                     rpc::Message::Status => {}
                 }
@@ -35,7 +36,7 @@ impl Monitor {
     }
 }
 
-pub fn start(config_dir: &Path, config: config::Config, daemonize: bool) {
+pub fn start(config_dir: &Path, daemonize: bool) {
     let pid_file = if daemonize {
         let pid_file = config_dir.join("daemon.pid");
 
@@ -58,13 +59,7 @@ pub fn start(config_dir: &Path, config: config::Config, daemonize: bool) {
 
     let mut monitor = Monitor {
         server,
-        processs: config
-            .process
-            .into_iter()
-            .map(|(name, process_config)| {
-                manager::Process::new(name, process_config.program, process_config.args)
-            })
-            .collect(),
+        processs: vec![],
     };
     monitor.run();
 

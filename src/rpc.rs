@@ -21,9 +21,15 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use serde_json;
 
+use crate::config;
+
 #[derive(Serialize, Deserialize, Debug)]
 /// A message to be exchanged between a `Client` and `Server`.
 pub enum Message {
+    /// Start a new process with the given config name and config.
+    Start(String, config::Process),
+    /// Stop a process with a given name.
+    Stop(String),
     Quit,
     Status,
 }

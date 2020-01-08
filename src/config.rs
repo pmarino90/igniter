@@ -6,17 +6,17 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use toml;
 
 /// Top level configuration.
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
     pub process: HashMap<String, Process>,
 }
 
 /// Configuration of an individual process.
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Process {
     /// Program to execute to start the process.
     pub program: String,
