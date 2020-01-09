@@ -1,3 +1,4 @@
+use std::collections::hash_map::{Entry, HashMap};
 use std::fs;
 use std::fs::File;
 use std::path::Path;
@@ -6,27 +7,58 @@ use std::time::Duration;
 
 use daemonize::Daemonize;
 
+use crate::config;
 use crate::manager;
 use crate::rpc;
 
+struct State {
+    processes: HashMap<String, manager::Process>,
+}
+
+impl State {
+    pub fn new() -> State {
+        State {
+            processes: HashMap::new(),
+        }
+    }
+}
+
 struct Monitor {
     server: rpc::Server,
-    processs: Vec<manager::Process>,
+    state: State,
 }
 
 impl Monitor {
     fn run(&mut self) {
         loop {
-            for process in self.processs.iter_mut() {
-                let desired_status = manager::Status::Running;
-                let _ = process.try_reconciliate(&desired_status);
+            for (_, process) in self.state.processes.iter_mut() {
+                let _ = process.try_reconciliate();
             }
 
-            if let Ok(Some(msg)) = self.server.try_receive() {
-                if let Ok(cmd) = msg.decode() {
-                    match cmd {
-                        rpc::Message::Start(_, _) => {}
-                        rpc::Message::Stop(_process_name) => {}
+            if let Ok(Some(undecoded_msg)) = self.server.try_receive() {
+                if let Ok(msg) = undecoded_msg.decode() {
+                    match msg {
+                        rpc::Message::Start(name, config) => {
+                            let entry = self.state.processes.entry(name.clone());
+
+                            if let Entry::Vacant(_) = entry {
+                                let config::Process { program, args } = config.into_owned();
+                                let mut process = manager::Process::new(name, program, args);
+                                if process.start().is_ok() {
+                                    entry.or_insert(process);
+                                }
+                            }
+                        }
+
+                        rpc::Message::Stop(name) => {
+                            let entry = self.state.processes.entry(name);
+                            if let Entry::Occupied(_) = entry {
+                                entry.and_modify(|v| {
+                                    let _ = v.stop();
+                                });
+                            }
+                        }
+
                         rpc::Message::Quit => break,
                         rpc::Message::Status => {}
                     }
@@ -61,7 +93,7 @@ pub fn start(config_dir: &Path, daemonize: bool) {
 
     let mut monitor = Monitor {
         server,
-        processs: vec![],
+        state: State::new(),
     };
     monitor.run();
 

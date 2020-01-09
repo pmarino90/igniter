@@ -5,6 +5,7 @@ pub struct Process {
     name: String,
     command: Command,
     child: Option<Child>,
+    desired_status: Status,
 }
 
 impl Process {
@@ -15,6 +16,7 @@ impl Process {
             name,
             command,
             child: None,
+            desired_status: Status::NotRunning,
         }
     }
 
@@ -30,9 +32,9 @@ impl Process {
         }
     }
 
-    pub fn required_action(&mut self, desired_status: &Status) -> io::Result<Option<Action>> {
+    pub fn required_action(&mut self) -> io::Result<Option<Action>> {
         let current_status = self.status()?;
-        let result = match (current_status, desired_status) {
+        let result = match (current_status, self.desired_status) {
             (Status::NotRunning, Status::NotRunning) => None,
             (Status::NotRunning, Status::Running) => Some(Action::Start),
             (Status::Running, Status::Running) => None,
@@ -41,30 +43,39 @@ impl Process {
         Ok(result)
     }
 
-    pub fn try_reconciliate(&mut self, desired_status: &Status) -> io::Result<()> {
-        match self.required_action(desired_status)? {
+    pub fn try_reconciliate(&mut self) -> io::Result<()> {
+        match self.required_action()? {
             Some(Action::Stop) => self.stop(),
             Some(Action::Start) => self.start(),
             None => Ok(()),
         }
     }
 
-    fn start(&mut self) -> io::Result<()> {
+    // TODO: Here both start/stop and try_reconciliate mutate the
+    // self.desired_status. It would be better to break this cycle.
+
+    pub fn start(&mut self) -> io::Result<()> {
         println!("[{}] starting", self.name);
         self.command.spawn().and_then(|child| {
             self.child = Some(child);
+            self.desired_status = Status::Running;
             Ok(())
         })
     }
 
-    fn stop(&mut self) -> io::Result<()> {
+    pub fn stop(&mut self) -> io::Result<()> {
         match &mut self.child {
-            Some(child) => child.kill(),
+            Some(child) => {
+                child.kill()?;
+                self.desired_status = Status::NotRunning;
+                Ok(())
+            }
             None => Ok(()),
         }
     }
 }
 
+#[derive(Copy, Clone, Debug)]
 pub enum Status {
     NotRunning,
     Running,
