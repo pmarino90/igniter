@@ -31,7 +31,12 @@ struct Monitor {
 impl Monitor {
     fn run(&mut self) {
         loop {
-            for (_, process) in self.state.processes.iter_mut() {
+            for (_name, process) in self.state.processes.iter_mut() {
+                let status = process.status();
+                println!(
+                    "[{}] - status {:?},  desired: {:?}",
+                    process.name, status, process.desired_status
+                );
                 let _ = process.try_reconciliate();
             }
 

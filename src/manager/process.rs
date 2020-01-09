@@ -2,10 +2,10 @@ use std::io;
 use std::process::{Child, Command};
 
 pub struct Process {
-    name: String,
+    pub name: String,
     command: Command,
     child: Option<Child>,
-    desired_status: Status,
+    pub desired_status: Status,
 }
 
 impl Process {
