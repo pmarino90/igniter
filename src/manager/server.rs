@@ -32,11 +32,6 @@ impl Monitor {
     fn run(&mut self) {
         loop {
             for (_name, process) in self.state.processes.iter_mut() {
-                let status = process.status();
-                println!(
-                    "[{}] - status {:?},  desired: {:?}",
-                    process.name, status, process.desired_status
-                );
                 let _ = process.try_reconciliate();
             }
 
@@ -49,9 +44,8 @@ impl Monitor {
                             if let Entry::Vacant(_) = entry {
                                 let config::Process { program, args } = config.into_owned();
                                 let mut process = manager::Process::new(name, program, args);
-                                if process.start().is_ok() {
-                                    entry.or_insert(process);
-                                }
+                                process.desired_status = manager::Status::Running;
+                                entry.or_insert(process);
                             }
                         }
 
@@ -59,7 +53,7 @@ impl Monitor {
                             let entry = self.state.processes.entry(name);
                             if let Entry::Occupied(_) = entry {
                                 entry.and_modify(|v| {
-                                    let _ = v.stop();
+                                    v.desired_status = manager::Status::NotRunning;
                                 });
                             }
                         }

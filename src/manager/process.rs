@@ -51,23 +51,19 @@ impl Process {
         }
     }
 
-    // TODO: Here both start/stop and try_reconciliate mutate the
-    // self.desired_status. It would be better to break this cycle.
-
-    pub fn start(&mut self) -> io::Result<()> {
+    fn start(&mut self) -> io::Result<()> {
         println!("[{}] starting", self.name);
         self.command.spawn().and_then(|child| {
             self.child = Some(child);
-            self.desired_status = Status::Running;
             Ok(())
         })
     }
 
-    pub fn stop(&mut self) -> io::Result<()> {
+    fn stop(&mut self) -> io::Result<()> {
+        println!("[{}] stopping", self.name);
         match &mut self.child {
             Some(child) => {
                 child.kill()?;
-                self.desired_status = Status::NotRunning;
                 Ok(())
             }
             None => Ok(()),
@@ -75,7 +71,7 @@ impl Process {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Status {
     NotRunning,
     Running,
