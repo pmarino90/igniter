@@ -94,7 +94,21 @@ fn main() -> io::Result<()> {
             }
         }
 
-        ("stop", Some(_submatches)) => {}
+        ("stop", Some(submatches)) => {
+            let mut client = rpc::Client::new(&config_dir).unwrap();
+
+            let config = config::load_config(current_dir.join("igniter.toml"))
+                .expect("could not load configuration");
+
+            let processes = select_processes(submatches.value_of(PROCESS_NAME_ARG), &config);
+
+            for (name, _) in processes.into_iter() {
+                // TODO: I don't want to have to clone name and
+                // process just to encode.. ??
+                let msg = rpc::Message::Stop(name.to_string());
+                client.request(&msg).unwrap();
+            }
+        }
 
         ("status", _) => {
             let mut client = rpc::Client::new(&config_dir).unwrap();
