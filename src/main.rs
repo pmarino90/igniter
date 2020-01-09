@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::env;
 use std::fs;
 use std::io;
@@ -88,7 +89,7 @@ fn main() -> io::Result<()> {
             for (name, process) in processes.into_iter() {
                 // TODO: I don't want to have to clone name and
                 // process just to encode.. ??
-                let msg = rpc::Message::Start(name.to_string(), process.clone());
+                let msg = rpc::Message::Start(name.to_string(), Cow::Borrowed(process));
                 client.request(&msg).unwrap();
             }
         }

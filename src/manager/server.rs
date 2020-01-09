@@ -23,11 +23,13 @@ impl Monitor {
             }
 
             if let Ok(Some(msg)) = self.server.try_receive() {
-                match msg {
-                    rpc::Message::Start(_, _) => {}
-                    rpc::Message::Stop(_process_name) => {}
-                    rpc::Message::Quit => break,
-                    rpc::Message::Status => {}
+                if let Ok(cmd) = msg.decode() {
+                    match cmd {
+                        rpc::Message::Start(_, _) => {}
+                        rpc::Message::Stop(_process_name) => {}
+                        rpc::Message::Quit => break,
+                        rpc::Message::Status => {}
+                    }
                 }
             }
 

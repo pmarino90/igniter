@@ -12,6 +12,7 @@
 //! Both ends can exchange values of type `Message`. Messages are
 //! serialized/deserialized with Serde and sent through Unix Sockets.
 
+use std::borrow::Cow;
 use std::fs;
 use std::io;
 use std::io::prelude::*;
@@ -25,9 +26,9 @@ use crate::config;
 
 #[derive(Serialize, Deserialize, Debug)]
 /// A message to be exchanged between a `Client` and `Server`.
-pub enum Message {
+pub enum Message<'a> {
     /// Start a new process with the given config name and config.
-    Start(String, config::Process),
+    Start(String, Cow<'a, config::Process>),
     /// Stop a process with a given name.
     Stop(String),
     Quit,
@@ -38,7 +39,7 @@ fn encode(msg: &Message) -> Result<Vec<u8>, serde_json::Error> {
     serde_json::to_vec(msg)
 }
 
-fn decode(str: &[u8]) -> Result<Message, serde_json::Error> {
+fn decode<'a>(str: &'a [u8]) -> Result<Message<'a>, serde_json::Error> {
     serde_json::from_slice(str)
 }
 
@@ -73,6 +74,15 @@ pub struct Server {
     listener: UnixListener,
 }
 
+pub struct UndecodedMessage(Vec<u8>);
+
+impl UndecodedMessage {
+    pub fn decode<'a>(&'a self) -> Result<Message<'a>, serde_json::Error> {
+        let msg = decode(&self.0)?;
+        Ok(msg)
+    }
+}
+
 impl Server {
     /// Create and bind a new server based on `config_dir.`
     pub fn new(config_dir: &Path) -> io::Result<Server> {
@@ -90,14 +100,12 @@ impl Server {
     /// If no message is available, A Ok(None) is returned. Errors are
     /// only returned when we can't read messages from the socket for
     /// some reason.
-    pub fn try_receive(&mut self) -> io::Result<Option<Message>> {
+    pub fn try_receive(&mut self) -> io::Result<Option<UndecodedMessage>> {
         match self.listener.accept() {
             Ok((mut stream, _)) => {
                 let mut request: Vec<u8> = Vec::new();
                 stream.read_to_end(&mut request)?;
-                let msg = decode(&request)?;
-                println!("msg: {:?}", msg);
-                Ok(Some(msg))
+                Ok(Some(UndecodedMessage(request)))
             }
             Err(err) => match err.kind() {
                 io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut => Ok(None),
