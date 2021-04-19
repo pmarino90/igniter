@@ -5,39 +5,7 @@ A simple process manager written in Rust.
 [![crates.io](https://img.shields.io/crates/v/igniter.svg)](https://crates.io/crates/igniter)
 
 ## Project status
-
-I wrote Igniter almost 2 years ago because I needed something to solve a direct problem I was having on the project I was working on. Back then I didn't know if I was going to continue working on this as side project. 
-However then I changed job and country so I put a bit aside this project.
-
-During the last few months I ended up in thinking about what to do with this and eventually I decided not to abandon it and I will be going to rewrite igniter with a few new concepts in mind. 
-
-The main idea about the new design is that igniter should be a good and extensible process manager for the developer's environment. Today's applications tent sometimes to depend on different other processes during the dev lifecycle that might not be needed in production.
-
-The future igniter will have a few key features that I want to concentrate on which are:
-* workspace (Possibility to define and manage more processes)
-	*  process dependency (ie: start app after the database)
-	* log aggregation
-* lifecycle hooks
-	* run a command before and after staring/stopping the process
-	* run a command before and after starting/stopping the workspace
-* retry on fail
-* log collection 
-* config file to indicate
-	* process to start
-	* working directory
-	* env variables
-	* name
-	* retry policy
-	* process dependencies
-	* `before_start` command
-	* `after_start` command
-
-I will be starting to work on this in the near future 😄 
-
-
-
-
-**UNDER ACTIVE DEVELOPMENT**
+**Not maintained anymore**
 
 ## Description
 Igniter was written for fun and profit, the idea behind it is to a simple process manager to be used while developing projects that need some always on dependencies.  
